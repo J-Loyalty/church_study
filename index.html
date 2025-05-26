@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>객관식 문제 맞추기</title>
+    <style>
+        /* CSS 스타일 */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 700px; /* 너비 확장 */
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 25px;
+        }
+
+        #quiz-area p#question {
+            font-size: 1.5em;
+            margin-bottom: 25px;
+            font-weight: bold;
+            line-height: 1.5;
+            color: #34495e;
+        }
+
+        #options-container {
+            display: flex;
+            flex-wrap: wrap; /* 반응형을 위해 줄바꿈 */
+            justify-content: center;
+            gap: 15px; /* 버튼 사이 간격 */
+            margin-bottom: 25px;
+        }
+
+        .option-button {
+            background-color: #e0e0e0;
+            color: #333;
+            padding: 15px 25px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            flex-basis: calc(50% - 15px); /* 두 개씩 한 줄에 배치 */
+            max-width: 320px; /* 최대 너비 제한 */
+            box-sizing: border-box; /* 패딩, 보더 포함 너비 계산 */
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .option-button:hover {
+            background-color: #d0d0d0;
+            border-color: #a0a0a0;
+        }
+
+        .option-button.selected {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        #submit-btn, #next-btn {
+            background-color: #28a745;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+            margin: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        #submit-btn:hover, #next-btn:hover {
+            background-color: #218838;
+        }
+
+        #result-message {
+            margin-top: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            line-height: 1.4;
+        }
+
+        #explanation {
+            margin-top: 15px;
+            font-size: 1em;
+            color: #555;
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            display: none; /* 초기에는 숨김 */
+        }
+
+        .correct {
+            color: #28a745; /* 초록색 */
+        }
+
+        .incorrect {
+            color: #dc3545; /* 빨간색 */
+        }
+
+        /* 반응형 디자인을 위한 미디어 쿼리 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            #quiz-area p#question {
+                font-size: 1.3em;
+            }
+            .option-button {
+                padding: 12px 20px;
+                font-size: 1em;
+                flex-basis: calc(100% - 15px); /* 모바일에서는 한 줄에 하나씩 */
+            }
+            #submit-btn, #next-btn {
+                padding: 10px 20px;
+                font-size: 1em;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                width: 95%;
+                padding: 15px;
+            }
+            h1 {
+                font-size: 1.5em;
+            }
+            #quiz-area p#question {
+                font-size: 1.1em;
+            }
+            #options-container {
+                gap: 10px;
+            }
+            .option-button {
+                font-size: 0.95em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>객관식 문제 맞추기 게임</h1>
+        <div id="quiz-area">
+            <p id="question">문제를 불러오는 중...</p>
+            <div id="options-container">
+                </div>
+            <button id="submit-btn">정답 확인</button>
+            <button id="next-btn" style="display: none;">다음 문제</button>
+            <p id="result-message"></p>
+            <p id="explanation"></p> </div>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script>
+        /* JavaScript (jQuery) 코드 */
+        $(document).ready(function() {
+            // 여기에 여러분의 Google 스프레드시트 CSV URL을 붙여넣으세요!
+            // 예시: https://docs.google.com/spreadsheets/d/e/2PACX-1vR_YOUR_SPREADSHEET_ID/pub?gid=0&single=true&output=csv
+            const googleSpreadsheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTriTFitr0XxbN8tGQmxBK-syK20Lq2fv37ZW9daRZc_RBgRg6wKsf3ngVV9V_tv9cg7LbXSJIOAu62/pub?gid=0&single=true&output=csv'; 
+
+            let quizData = [];
+            let currentQuestionIndex = 0;
+            let selectedOption = null; // 사용자가 선택한 옵션 저장
+
+            // 배열을 무작위로 섞는 함수 (Fisher-Yates 셔플 알고리즘)
+            function shuffleArray(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]]; // 요소 교환
+                }
+            }
+
+            // 문제 데이터 로드 함수
+            function loadQuizData() {
+                $.ajax({
+                    url: googleSpreadsheetUrl,
+                    dataType: 'text', // CSV는 텍스트로 받아옵니다.
+                    success: function(data) {
+                        const rows = data.split(/\r?\n/).filter(row => row.trim() !== ''); // 빈 줄 제거
+                        quizData = rows.map(row => {
+                            const columns = row.split(',');
+                            // 데이터 유효성 검사 및 trim 처리
+                            const question = columns[0] ? columns[0].trim() : '';
+                            const options = [
+                                columns[1] ? columns[1].trim() : '',
+                                columns[2] ? columns[2].trim() : '',
+                                columns[3] ? columns[3].trim() : '',
+                                columns[4] ? columns[4].trim() : ''
+                            ];
+                            const correctAnswer = columns[5] ? columns[5].trim() : '';
+                            const explanation = columns[6] ? columns[6].trim() : '';
+
+                            return {
+                                question: question,
+                                options: options,
+                                correctAnswer: correctAnswer,
+                                explanation: explanation
+                            };
+                        }).filter(q => 
+                            q.question && 
+                            q.options.every(opt => opt) && 
+                            q.correctAnswer && 
+                            q.options.length === 4 && // 옵션이 4개인지 확인
+                            q.options.includes(q.correctAnswer) // 정답이 옵션에 포함되어 있는지 확인
+                        ); 
+
+                        // 첫 번째 줄 (헤더) 제거 (필요하다면)
+                        // quizData.shift(); 
+
+                        if (quizData.length > 0) {
+                            // 전체 문제 데이터를 한 번 섞습니다.
+                            shuffleArray(quizData);
+                            displayQuestion();
+                        } else {
+                            $('#question').text('문제를 불러오지 못했습니다. 스프레드시트 데이터 형식을 확인하세요.');
+                            $('#options-container').empty();
+                            $('#submit-btn').hide();
+                            $('#next-btn').hide();
+                        }
+                    },
+                    error: function() {
+                        $('#question').text('데이터 로드 중 오류가 발생했습니다. 네트워크 연결 및 URL을 확인하세요.');
+                        $('#options-container').empty();
+                        $('#submit-btn').hide();
+                        $('#next-btn').hide();
+                    }
+                });
+            }
+
+            // 문제 및 옵션 표시 함수
+            function displayQuestion() {
+                if (currentQuestionIndex < quizData.length) {
+                    const currentQuiz = quizData[currentQuestionIndex];
+                    $('#question').text(currentQuiz.question);
+                    
+                    // 옵션 배열을 복사하여 무작위로 섞습니다.
+                    const shuffledOptions = [...currentQuiz.options]; // 원본 배열을 변경하지 않기 위해 복사
+                    shuffleArray(shuffledOptions); // 섞기 함수 호출
+                    
+                    // 옵션 버튼 동적 생성
+                    $('#options-container').empty(); // 기존 옵션 제거
+                    shuffledOptions.forEach((optionText) => { // 섞인 옵션 사용
+                        const optionButton = $('<button>')
+                            .addClass('option-button')
+                            .text(optionText)
+                            .attr('data-option', optionText) // 데이터 속성으로 옵션 텍스트 저장
+                            .on('click', function() {
+                                // 기존 선택 해제
+                                $('.option-button').removeClass('selected');
+                                // 현재 선택 적용
+                                $(this).addClass('selected');
+                                selectedOption = $(this).attr('data-option');
+                            });
+                        $('#options-container').append(optionButton);
+                    });
+
+                    $('#result-message').text(''); // 결과 메시지 초기화
+                    $('#explanation').text('').hide(); // 설명 초기화 및 숨김
+                    $('#submit-btn').show(); // 제출 버튼 표시
+                    $('#next-btn').hide(); // 다음 문제 버튼 숨김
+                    selectedOption = null; // 선택된 옵션 초기화
+                    // 모든 옵션 버튼에 다시 클릭 이벤트 리스너를 활성화합니다.
+                    $('.option-button').on('click', function() {
+                        $('.option-button').removeClass('selected');
+                        $(this).addClass('selected');
+                        selectedOption = $(this).attr('data-option');
+                    }); 
+                } else {
+                    $('#question').text('모든 문제를 다 풀었습니다! 수고하셨습니다!');
+                    $('#options-container').empty();
+                    $('#submit-btn').hide();
+                    $('#next-btn').hide();
+                    $('#result-message').text('');
+                    $('#explanation').text('').hide();
+                }
+            }
+
+            // 정답 확인 함수
+            function checkAnswer() {
+                if (selectedOption === null) {
+                    $('#result-message').removeClass('correct incorrect').text('옵션을 선택해주세요.');
+                    return;
+                }
+
+                const currentQuiz = quizData[currentQuestionIndex];
+                // 대소문자 구분 없이 비교
+                if (selectedOption.toLowerCase() === currentQuiz.correctAnswer.toLowerCase()) { 
+                    $('#result-message').removeClass('incorrect').addClass('correct').text('정답입니다!');
+                    // 정답 버튼에 특별한 스타일 추가
+                    $('.option-button[data-option="' + selectedOption + '"]').css('background-color', '#28a745').css('color', 'white');
+                } else {
+                    $('#result-message').removeClass('correct').addClass('incorrect').text('오답입니다!');
+                    // 오답 버튼에 빨간색 스타일
+                    $('.option-button[data-option="' + selectedOption + '"]').css('background-color', '#dc3545').css('color', 'white');
+                    // 정답 버튼에 초록색 스타일
+                    $('.option-button').each(function() {
+                        if ($(this).attr('data-option').toLowerCase() === currentQuiz.correctAnswer.toLowerCase()) {
+                            $(this).css('background-color', '#28a745').css('color', 'white');
+                        }
+                    });
+                }
+                
+                // 설명 표시
+                if (currentQuiz.explanation) {
+                    $('#explanation').text(currentQuiz.explanation).show();
+                } else {
+                    $('#explanation').text('').hide();
+                }
+
+                $('#submit-btn').hide(); // 제출 버튼 숨김
+                $('#next-btn').show(); // 다음 문제 버튼 표시
+                $('.option-button').off('click'); // 정답 확인 후 옵션 클릭 비활성화
+            }
+
+            // 이벤트 리스너 등록
+            $('#submit-btn').on('click', checkAnswer);
+
+            $('#next-btn').on('click', function() {
+                currentQuestionIndex++;
+                displayQuestion();
+            });
+
+            // 페이지 로드 시 문제 데이터 로드
+            loadQuizData(); 
+        });
+    </script>
+</body>
+</html>
